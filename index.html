@@ -10,7 +10,6 @@
         :root {
             --orange: #ff6600;
             --black: #1a1a1a;
-            --gray: #333;
         }
         * { box-sizing: border-box; }
         body {
@@ -73,8 +72,7 @@
         }
         th { background: var(--orange); color: black; }
         .actions button { padding: 8px 12px; font-size: 16px; margin: 2px; }
-        
-        /* Układ na tablecie w poziomie */
+
         @media (min-width: 900px) {
             .container { flex-direction: row; }
             .form-box { width: 38%; }
@@ -109,7 +107,7 @@
             <button onclick="addEntry()">➕ Dodaj wpis</button>
             <button class="btn-secondary" onclick="exportCSV()">💾 CSV (parami)</button>
         </div>
-        <button onclick="exportPDF()" style="background:#ff6600; font-size:19px;">📄 PDF (parami) - Poziomy</button>
+        <button onclick="exportPDF()" style="background:#ff6600; font-size:19px; padding:16px;">📄 PDF (parami) - Poziomy</button>
         <button onclick="clearLog()" class="btn-danger">🗑️ Wyczyść wszystko</button>
     </div>
 
@@ -132,10 +130,7 @@ const todayStr = () => new Date().toISOString().slice(0,10);
 
 function load() {
     const raw = localStorage.getItem('driverLog_v3');
-    if (!raw) return [];
-    try {
-        return JSON.parse(raw).sort((a,b) => b.ts - a.ts);
-    } catch(e) { return []; }
+    return raw ? JSON.parse(raw) : [];
 }
 
 function persist() {
@@ -161,11 +156,11 @@ function render() {
     });
 }
 
-// ==================== PDF i CSV - PARAMI ====================
+// ==================== PARAMI (Załadunek + Rozładunek) ====================
 function getPairs() {
-    let pairs = [];
+    const pairs = [];
     let currentLoad = null;
-    for (let e of entries) {
+    for (let e of [...entries].reverse()) {   // od najstarszego
         if (e.type === "Załadunek") {
             if (currentLoad) pairs.push({load: currentLoad, unload: null});
             currentLoad = e;
@@ -175,47 +170,71 @@ function getPairs() {
         }
     }
     if (currentLoad) pairs.push({load: currentLoad, unload: null});
-    return pairs;
+    return pairs.reverse(); // odwróć aby najnowsze były na górze
 }
 
+// ==================== PDF - NAPRAWIONY ====================
 async function exportPDF() {
-    if (entries.length === 0) return alert("Brak wpisów!");
+    if (entries.length === 0) {
+        return alert("Brak wpisów do wygenerowania PDF!");
+    }
 
-    const driver = document.getElementById('driver').value || localStorage.getItem('driverName') || "";
-    const carNo = document.getElementById('carNo').value || localStorage.getItem('carNumber') || "";
+    const driver = document.getElementById('driver').value.trim() || localStorage.getItem('driverName') || "Kierowca";
+    const carNo = document.getElementById('carNo').value.trim() || localStorage.getItem('carNumber') || "";
+
+    const pairs = getPairs();
 
     let html = `
-        <div style="padding:20px; font-family:Arial;">
+        <div style="padding:30px; font-family:Arial, sans-serif; background:white;">
             <h1 style="text-align:center; color:#ff6600;">DZIENNIK KIEROWCY</h1>
-            <p style="text-align:center;">${driver}  •  ${carNo}  •  ${new Date().toLocaleDateString('pl-PL')}</p>
-            <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse;">
-                <tr style="background:#ff6600; color:black;">
-                    <th>Data Załadunku</th><th>Miejsce Załadunku</th><th>Licznik Z.</th>
-                    <th>Data Rozładunku</th><th>Miejsce Rozładunku</th><th>Licznik R.</th>
-                </tr>`;
+            <p style="text-align:center; font-size:18px; margin:20px 0;">
+                ${driver}  •  ${carNo}  •  ${new Date().toLocaleDateString('pl-PL')}
+            </p>
+            <table border="1" cellpadding="12" style="width:100%; border-collapse:collapse; border:3px solid #ff6600;">
+                <thead>
+                    <tr style="background:#ff6600; color:black;">
+                        <th>Data Załadunku</th>
+                        <th>Miejsce Załadunku</th>
+                        <th>Licznik Z.</th>
+                        <th>Data Rozładunku</th>
+                        <th>Miejsce Rozładunku</th>
+                        <th>Licznik R.</th>
+                    </tr>
+                </thead>
+                <tbody>`;
 
-    getPairs().forEach(p => {
-        html += `<tr>
-            <td>${p.load.date}</td><td>${p.load.place}</td><td>${p.load.odometer}</td>
-            <td>${p.unload ? p.unload.date : ''}</td><td>${p.unload ? p.unload.place : ''}</td><td>${p.unload ? p.unload.odometer : ''}</td>
-        </tr>`;
+    pairs.forEach(p => {
+        html += `
+            <tr>
+                <td>${p.load.date}</td>
+                <td>${p.load.place}</td>
+                <td style="text-align:right;">${p.load.odometer}</td>
+                <td>${p.unload ? p.unload.date : ''}</td>
+                <td>${p.unload ? p.unload.place : ''}</td>
+                <td style="text-align:right;">${p.unload ? p.unload.odometer : ''}</td>
+            </tr>`;
     });
 
-    html += `</table></div>`;
+    html += `</tbody></table></div>`;
 
     const element = document.createElement('div');
     element.innerHTML = html;
     document.body.appendChild(element);
 
     const opt = {
-        margin: 10,
-        filename: `Dziennik_${driver.replace(/ /g,'_')}.pdf`,
+        margin: [15, 10, 15, 10],
+        filename: `Dziennik_${driver.replace(/ /g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`,
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
 
-    await html2pdf().set(opt).from(element).save();
-    document.body.removeChild(element);
+    try {
+        await html2pdf().set(opt).from(element).save();
+    } catch (e) {
+        alert("Błąd PDF: " + e.message);
+    } finally {
+        document.body.removeChild(element);
+    }
 }
 
 function exportCSV() {
@@ -224,15 +243,14 @@ function exportCSV() {
     getPairs().forEach(p => {
         csv += `${p.load.date};${p.load.place};${p.load.odometer};${p.unload?p.unload.date:''};${p.unload?p.unload.place:''};${p.unload?p.unload.odometer:''}\n`;
     });
-    const blob = new Blob([csv], {type: 'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'dziennik_parami.csv';
-    a.click();
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'dziennik_parami.csv';
+    link.click();
 }
 
-// ==================== Pozostałe funkcje ====================
+// ==================== Reszta funkcji (bez zmian) ====================
 function addEntry() {
     const type = document.getElementById('type').value;
     const date = document.getElementById('date').value || todayStr();
@@ -263,7 +281,7 @@ function editEntry(id) {
     const e = entries.find(x => x.id === id);
     if (!e) return;
     const newDate = prompt("Data:", e.date) || e.date;
-    const newType = prompt("Rodzaj (Załadunek/Rozładunek):", e.type) || e.type;
+    const newType = prompt("Rodzaj:", e.type) || e.type;
     const newPlace = prompt("Miejsce:", e.place) || e.place;
     const newOdo = prompt("Licznik:", e.odometer) || e.odometer;
 
@@ -277,7 +295,7 @@ function editEntry(id) {
 
 function clearLog() {
     if (!confirm("🗑️ Na pewno wyczyścić WSZYSTKO?")) return;
-    if (!confirm("OSTATNIE POTWIERDZENIE - dane zostaną trwale usunięte!")) return;
+    if (!confirm("OSTATNIE POTWIERDZENIE – dane zostaną trwale usunięte!")) return;
     localStorage.clear();
     entries = [];
     render();
