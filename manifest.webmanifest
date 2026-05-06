@@ -1,0 +1,16 @@
+{
+  "name": "Dziennik Kierowcy",
+  "short_name": "Dziennik",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#111",
+  "theme_color": "#ff6600",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192/ff6600/000000?text=🚛",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
