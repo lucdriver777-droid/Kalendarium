@@ -1,1 +1,304 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dziennik Kierowcy</title>
+    <meta name="theme-color" content="#ff6600">
+    <link rel="manifest" href="manifest.webmanifest">
+    <style>
+        :root {
+            --orange: #ff6600;
+            --black: #1a1a1a;
+            --gray: #333;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #111;
+            color: white;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: var(--orange);
+            margin: 15px 0;
+            font-size: 28px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            gap: 15px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .form-box, .table-box {
+            background: #222;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid var(--orange);
+        }
+        label { display: block; margin: 12px 0 6px; font-weight: bold; color: #ddd; }
+        input, select, button {
+            width: 100%;
+            padding: 14px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
+        }
+        input, select { background: #333; color: white; }
+        button {
+            background: var(--orange);
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        button:hover { background: #ff8833; }
+        .btn-secondary { background: #555; color: white; }
+        .btn-danger { background: #c00; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #222;
+        }
+        th, td {
+            padding: 14px;
+            text-align: center;
+            border-bottom: 1px solid #444;
+        }
+        th { background: var(--orange); color: black; }
+        .actions button { padding: 8px 12px; font-size: 16px; margin: 2px; }
+        
+        /* Układ na tablecie w poziomie */
+        @media (min-width: 900px) {
+            .container { flex-direction: row; }
+            .form-box { width: 38%; }
+            .table-box { width: 62%; }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+</head>
+<body>
 
+<div class="container">
+    <!-- Formularz -->
+    <div class="form-box">
+        <h1>🚛 Dziennik Kierowcy</h1>
+        <div class="row">
+            <div><label>Kierowca</label><input type="text" id="driver" placeholder="Jan Kowalski" oninput="saveHeader()"></div>
+            <div><label>Nr rejestracyjny</label><input type="text" id="carNo" placeholder="SK 1234A" oninput="saveHeader()"></div>
+        </div>
+        <div class="row">
+            <div><label>Rodzaj</label>
+                <select id="type">
+                    <option value="Załadunek">Załadunek</option>
+                    <option value="Rozładunek">Rozładunek</option>
+                </select>
+            </div>
+            <div><label>Data</label><input type="date" id="date"></div>
+        </div>
+        <label>Miejsce</label><input type="text" id="place" placeholder="np. Katowice - DHL">
+        <label>Stan licznika (km)</label><input type="number" id="odometer" placeholder="152340">
+
+        <div class="row">
+            <button onclick="addEntry()">➕ Dodaj wpis</button>
+            <button class="btn-secondary" onclick="exportCSV()">💾 CSV (parami)</button>
+        </div>
+        <button onclick="exportPDF()" style="background:#ff6600; font-size:19px;">📄 PDF (parami) - Poziomy</button>
+        <button onclick="clearLog()" class="btn-danger">🗑️ Wyczyść wszystko</button>
+    </div>
+
+    <!-- Tabela -->
+    <div class="table-box">
+        <table id="logTable">
+            <thead>
+                <tr><th>#</th><th>Data</th><th>Rodzaj</th><th>Miejsce</th><th>Licznik</th><th>Akcje</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// ==================== DANE ====================
+let entries = [];
+
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+function load() {
+    const raw = localStorage.getItem('driverLog_v3');
+    if (!raw) return [];
+    try {
+        return JSON.parse(raw).sort((a,b) => b.ts - a.ts);
+    } catch(e) { return []; }
+}
+
+function persist() {
+    localStorage.setItem('driverLog_v3', JSON.stringify(entries));
+}
+
+function render() {
+    const tbody = document.querySelector('#logTable tbody');
+    tbody.innerHTML = '';
+    entries.forEach((e, i) => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${i+1}</td>
+            <td>${e.date}</td>
+            <td>${e.type}</td>
+            <td>${e.place}</td>
+            <td>${e.odometer}</td>
+            <td class="actions">
+                <button onclick="editEntry(${e.id})">✏️</button>
+                <button onclick="deleteEntry(${e.id})">🗑️</button>
+            </td>
+        `;
+    });
+}
+
+// ==================== PDF i CSV - PARAMI ====================
+function getPairs() {
+    let pairs = [];
+    let currentLoad = null;
+    for (let e of entries) {
+        if (e.type === "Załadunek") {
+            if (currentLoad) pairs.push({load: currentLoad, unload: null});
+            currentLoad = e;
+        } else if (e.type === "Rozładunek" && currentLoad) {
+            pairs.push({load: currentLoad, unload: e});
+            currentLoad = null;
+        }
+    }
+    if (currentLoad) pairs.push({load: currentLoad, unload: null});
+    return pairs;
+}
+
+async function exportPDF() {
+    if (entries.length === 0) return alert("Brak wpisów!");
+
+    const driver = document.getElementById('driver').value || localStorage.getItem('driverName') || "";
+    const carNo = document.getElementById('carNo').value || localStorage.getItem('carNumber') || "";
+
+    let html = `
+        <div style="padding:20px; font-family:Arial;">
+            <h1 style="text-align:center; color:#ff6600;">DZIENNIK KIEROWCY</h1>
+            <p style="text-align:center;">${driver}  •  ${carNo}  •  ${new Date().toLocaleDateString('pl-PL')}</p>
+            <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse;">
+                <tr style="background:#ff6600; color:black;">
+                    <th>Data Załadunku</th><th>Miejsce Załadunku</th><th>Licznik Z.</th>
+                    <th>Data Rozładunku</th><th>Miejsce Rozładunku</th><th>Licznik R.</th>
+                </tr>`;
+
+    getPairs().forEach(p => {
+        html += `<tr>
+            <td>${p.load.date}</td><td>${p.load.place}</td><td>${p.load.odometer}</td>
+            <td>${p.unload ? p.unload.date : ''}</td><td>${p.unload ? p.unload.place : ''}</td><td>${p.unload ? p.unload.odometer : ''}</td>
+        </tr>`;
+    });
+
+    html += `</table></div>`;
+
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    document.body.appendChild(element);
+
+    const opt = {
+        margin: 10,
+        filename: `Dziennik_${driver.replace(/ /g,'_')}.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    await html2pdf().set(opt).from(element).save();
+    document.body.removeChild(element);
+}
+
+function exportCSV() {
+    if (entries.length === 0) return alert("Brak wpisów!");
+    let csv = "Data Załadunku;Miejsce Załadunku;Licznik Z.;Data Rozładunku;Miejsce Rozładunku;Licznik R.\n";
+    getPairs().forEach(p => {
+        csv += `${p.load.date};${p.load.place};${p.load.odometer};${p.unload?p.unload.date:''};${p.unload?p.unload.place:''};${p.unload?p.unload.odometer:''}\n`;
+    });
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dziennik_parami.csv';
+    a.click();
+}
+
+// ==================== Pozostałe funkcje ====================
+function addEntry() {
+    const type = document.getElementById('type').value;
+    const date = document.getElementById('date').value || todayStr();
+    const place = document.getElementById('place').value.trim();
+    const odo = document.getElementById('odometer').value.trim();
+
+    if (!place || !odo) return alert("Wpisz miejsce i stan licznika!");
+
+    entries.unshift({
+        id: Date.now(),
+        date, type, place, odometer: odo, ts: Date.now()
+    });
+    persist();
+    render();
+    document.getElementById('place').value = '';
+    document.getElementById('odometer').value = '';
+}
+
+function deleteEntry(id) {
+    if (confirm("Usunąć wpis?")) {
+        entries = entries.filter(e => e.id !== id);
+        persist();
+        render();
+    }
+}
+
+function editEntry(id) {
+    const e = entries.find(x => x.id === id);
+    if (!e) return;
+    const newDate = prompt("Data:", e.date) || e.date;
+    const newType = prompt("Rodzaj (Załadunek/Rozładunek):", e.type) || e.type;
+    const newPlace = prompt("Miejsce:", e.place) || e.place;
+    const newOdo = prompt("Licznik:", e.odometer) || e.odometer;
+
+    e.date = newDate;
+    e.type = newType;
+    e.place = newPlace;
+    e.odometer = newOdo;
+    persist();
+    render();
+}
+
+function clearLog() {
+    if (!confirm("🗑️ Na pewno wyczyścić WSZYSTKO?")) return;
+    if (!confirm("OSTATNIE POTWIERDZENIE - dane zostaną trwale usunięte!")) return;
+    localStorage.clear();
+    entries = [];
+    render();
+    document.getElementById('driver').value = '';
+    document.getElementById('carNo').value = '';
+    alert("Wszystkie dane zostały usunięte.");
+}
+
+function saveHeader() {
+    localStorage.setItem('driverName', document.getElementById('driver').value);
+    localStorage.setItem('carNumber', document.getElementById('carNo').value);
+}
+
+// Start
+window.onload = () => {
+    entries = load();
+    document.getElementById('date').value = todayStr();
+    document.getElementById('driver').value = localStorage.getItem('driverName') || '';
+    document.getElementById('carNo').value = localStorage.getItem('carNumber') || '';
+    render();
+};
+</script>
+</body>
+</html>
