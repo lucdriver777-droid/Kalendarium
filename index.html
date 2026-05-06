@@ -64,4 +64,106 @@ function render() {
 async function exportPDF() {
     if (entries.length === 0) return alert("Brak wpisów!");
 
-    const driver = document.getElementBy
+    const driver = document.getElementById('driver').value || "Kierowca";
+    const carNo = document.getElementById('carNo').value || "";
+
+    let html = `
+        <div style="padding:30px; font-family:Arial;">
+            <h1 style="text-align:center; color:#ff6600;">DZIENNIK KIEROWCY</h1>
+            <p style="text-align:center;">${driver} • ${carNo} • ${new Date().toLocaleDateString('pl-PL')}</p>
+            <table border="1" cellpadding="12" style="width:100%; border-collapse:collapse;">
+                <tr style="background:#ff6600; color:black;">
+                    <th>Lp.</th><th>Data</th><th>Rodzaj</th><th>Miejsce</th><th>Licznik km</th>
+                </tr>`;
+
+    entries.forEach((e, i) => {
+        html += `<tr>
+            <td>${i+1}</td>
+            <td>${e.date}</td>
+            <td>${e.type}</td>
+            <td>${e.place}</td>
+            <td>${e.odometer}</td>
+        </tr>`;
+    });
+
+    html += `</table></div>`;
+
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    document.body.appendChild(temp);
+
+    await html2pdf().set({
+        margin: 10,
+        filename: 'Dziennik_Kierowcy.pdf',
+        jsPDF: { orientation: 'landscape' }
+    }).from(temp).save();
+
+    document.body.removeChild(temp);
+}
+
+// ==================== CSV (przywrócony) ====================
+function exportCSV() {
+    if (entries.length === 0) return alert("Brak wpisów!");
+
+    let csv = "Lp.;Data;Rodzaj;Miejsce;Licznik_km\n";
+    entries.forEach((e, i) => {
+        csv += `${i+1};${e.date};${e.type};${e.place};${e.odometer}\n`;
+    });
+
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'Dziennik_Kierowcy.csv';
+    link.click();
+}
+
+// ==================== Reszta ====================
+function addEntry() {
+    const entry = {
+        id: Date.now(),
+        date: document.getElementById('date').value || new Date().toISOString().slice(0,10),
+        type: document.getElementById('type').value,
+        place: document.getElementById('place').value.trim(),
+        odometer: document.getElementById('odometer').value.trim()
+    };
+    if (!entry.place || !entry.odometer) return alert("Wpisz miejsce i licznik!");
+    
+    entries.unshift(entry);
+    persist();
+    render();
+    document.getElementById('place').value = '';
+    document.getElementById('odometer').value = '';
+}
+
+function deleteEntry(id) {
+    if (confirm("Usunąć wpis?")) {
+        entries = entries.filter(e => e.id !== id);
+        persist();
+        render();
+    }
+}
+
+function clearLog() {
+    if (confirm("Wyczyścić wszystko?") && confirm("Na pewno?")) {
+        localStorage.clear();
+        entries = [];
+        render();
+    }
+}
+
+function saveHeader() {
+    localStorage.setItem('driverName', document.getElementById('driver').value);
+    localStorage.setItem('carNumber', document.getElementById('carNo').value);
+}
+
+// Start
+window.onload = () => {
+    load();
+    document.getElementById('date').value = new Date().toISOString().slice(0,10);
+    document.getElementById('driver').value = localStorage.getItem('driverName') || '';
+    document.getElementById('carNo').value = localStorage.getItem('carNumber') || '';
+    render();
+};
+</script>
+</body>
+</html>
