@@ -10,44 +10,65 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 15px;
-            background: #111;
-            color: #ddd;
+            background: #f5f5f5;
+            color: #222;
         }
-        h1 { color: #ff6600; text-align: center; }
-        .container { max-width: 1200px; margin: auto; }
+        h1 { 
+            color: #ff6600; 
+            text-align: center; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: auto; 
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
         input, select, button {
             padding: 10px;
             margin: 5px;
             border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        input, select { 
+            background: white; 
+            color: #222; 
+        }
+        button { 
+            background: #ff6600; 
+            color: white; 
+            font-weight: bold; 
+            cursor: pointer;
             border: none;
         }
-        input, select { background: #222; color: white; }
-        button {
-            background: #ff6600;
-            color: black;
-            font-weight: bold;
-            cursor: pointer;
-        }
         button:hover { background: #ff8533; }
+        
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            background: #1a1a1a;
+            background: white;
         }
         th, td {
-            padding: 10px;
-            border: 1px solid #444;
+            padding: 12px;
+            border: 1px solid #ccc;
             text-align: center;
         }
-        th { background: #222; color: white; }
+        th { 
+            background: #333; 
+            color: white; 
+        }
         .action-btn {
-            padding: 5px 10px;
+            padding: 6px 12px;
             margin: 2px;
             font-size: 0.9em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
         }
-        .edit-btn { background: #0066cc; }
-        .delete-btn { background: #c00; }
+        .edit-btn { background: #0066cc; color: white; }
+        .delete-btn { background: #c00; color: white; }
     </style>
 </head>
 <body>
@@ -174,18 +195,18 @@
             const carNo = document.getElementById('carNo').value || "";
 
             let html = `
-                <div style="padding:30px; font-family:Arial,sans-serif; color:#000; background:#fff;">
-                    <h1 style="text-align:center; margin:0 0 10px 0;">Dziennik kierowcy</h1>
-                    <p style="text-align:center; margin-bottom:30px;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
+                <div style="padding:40px; font-family:Arial,sans-serif; background:white; color:black;">
+                    <h1 style="text-align:center; color:black; margin-bottom:20px;">Dziennik kierowcy</h1>
+                    <p style="text-align:center; color:black; margin-bottom:30px;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
                     
-                    <table border="1" cellpadding="10" cellspacing="0" style="width:100%; border-collapse:collapse; border:2px solid #000; font-size:11px;">
-                        <tr style="font-weight:bold; background:#f8f8f8;">
-                            <th style="border:1px solid #000;">Data Z.</th>
-                            <th style="border:1px solid #000;">Miejsce Z.</th>
-                            <th style="border:1px solid #000;">Stan licznika</th>
-                            <th style="border:1px solid #000;">Data R.</th>
-                            <th style="border:1px solid #000;">Miejsce R.</th>
-                            <th style="border:1px solid #000;">Stan licznika</th>
+                    <table border="1" cellpadding="12" cellspacing="0" style="width:100%; border-collapse:collapse; border:2px solid black; color:black; background:white;">
+                        <tr style="background:#f0f0f0; font-weight:bold; color:black;">
+                            <th style="border:1px solid black;">Data Z.</th>
+                            <th style="border:1px solid black;">Miejsce Z.</th>
+                            <th style="border:1px solid black;">Stan licznika</th>
+                            <th style="border:1px solid black;">Data R.</th>
+                            <th style="border:1px solid black;">Miejsce R.</th>
+                            <th style="border:1px solid black;">Stan licznika</th>
                         </tr>`;
 
             const sorted = [...entries].sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -196,28 +217,27 @@
                     const z = sorted[i];
                     const r = sorted[i+1];
                     html += `<tr>
-                        <td style="border:1px solid #000;">${z.date}</td>
-                        <td style="border:1px solid #000;">${z.place}</td>
-                        <td style="border:1px solid #000;">${z.odometer}</td>
-                        <td style="border:1px solid #000;">${r.date}</td>
-                        <td style="border:1px solid #000;">${r.place}</td>
-                        <td style="border:1px solid #000;">${r.odometer}</td>
+                        <td style="border:1px solid black;">${z.date}</td>
+                        <td style="border:1px solid black;">${z.place}</td>
+                        <td style="border:1px solid black;">${z.odometer}</td>
+                        <td style="border:1px solid black;">${r.date}</td>
+                        <td style="border:1px solid black;">${r.place}</td>
+                        <td style="border:1px solid black;">${r.odometer}</td>
                     </tr>`;
                     i += 2;
                 } else {
                     const e = sorted[i];
                     html += `<tr>
-                        <td style="border:1px solid #000;">${e.type==="Załadunek"?e.date:""}</td>
-                        <td style="border:1px solid #000;">${e.type==="Załadunek"?e.place:""}</td>
-                        <td style="border:1px solid #000;">${e.type==="Załadunek"?e.odometer:""}</td>
-                        <td style="border:1px solid #000;">${e.type==="Rozładunek"?e.date:""}</td>
-                        <td style="border:1px solid #000;">${e.type==="Rozładunek"?e.place:""}</td>
-                        <td style="border:1px solid #000;">${e.type==="Rozładunek"?e.odometer:""}</td>
+                        <td style="border:1px solid black;">${e.type==="Załadunek"?e.date:""}</td>
+                        <td style="border:1px solid black;">${e.type==="Załadunek"?e.place:""}</td>
+                        <td style="border:1px solid black;">${e.type==="Załadunek"?e.odometer:""}</td>
+                        <td style="border:1px solid black;">${e.type==="Rozładunek"?e.date:""}</td>
+                        <td style="border:1px solid black;">${e.type==="Rozładunek"?e.place:""}</td>
+                        <td style="border:1px solid black;">${e.type==="Rozładunek"?e.odometer:""}</td>
                     </tr>`;
                     i++;
                 }
             }
-
             html += `</table></div>`;
 
             const temp = document.createElement('div');
@@ -225,10 +245,10 @@
             document.body.appendChild(temp);
 
             await html2pdf().set({
-                margin: [20, 15, 20, 15],
+                margin: [25, 15, 25, 15],
                 filename: `Dziennik_${new Date().toISOString().slice(0,10)}.pdf`,
                 jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                html2canvas: { scale: 2, useCORS: true, logging: false }
+                html2canvas: { scale: 3, useCORS: true, backgroundColor: '#ffffff' }
             }).from(temp).save();
 
             document.body.removeChild(temp);
