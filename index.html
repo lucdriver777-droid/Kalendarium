@@ -40,12 +40,14 @@
             border: 1px solid #444;
             text-align: center;
         }
-        th { background: #333; color: white; }
-        .delete-btn {
-            background: #c00;
+        th { background: #222; color: white; }
+        .action-btn {
             padding: 5px 10px;
+            margin: 2px;
             font-size: 0.9em;
         }
+        .edit-btn { background: #0066cc; }
+        .delete-btn { background: #c00; }
     </style>
 </head>
 <body>
@@ -65,7 +67,8 @@
             </select>
             <input type="text" id="place" placeholder="Miejscowość">
             <input type="number" id="odometer" placeholder="Stan licznika">
-            <button onclick="addEntry()">Dodaj wpis</button>
+            <button onclick="addEntry()" id="addBtn">Dodaj wpis</button>
+            <button onclick="cancelEdit()" id="cancelBtn" style="display:none; background:#666;">Anuluj edycję</button>
         </div>
 
         <div style="text-align:center; margin:15px 0;">
@@ -81,7 +84,7 @@
                     <th>Typ</th>
                     <th>Miejscowość</th>
                     <th>Stan licznika</th>
-                    <th>Akcja</th>
+                    <th>Akcje</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -90,6 +93,7 @@
 
     <script>
         let entries = JSON.parse(localStorage.getItem('driverEntries')) || [];
+        let editIndex = null;
 
         function renderTable() {
             const tbody = document.querySelector('#table tbody');
@@ -101,7 +105,10 @@
                     <td>${entry.type}</td>
                     <td>${entry.place}</td>
                     <td>${entry.odometer}</td>
-                    <td><button class="delete-btn" onclick="deleteEntry(${index})">Usuń</button></td>
+                    <td>
+                        <button class="action-btn edit-btn" onclick="editEntry(${index})">Edytuj</button>
+                        <button class="action-btn delete-btn" onclick="deleteEntry(${index})">Usuń</button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -118,16 +125,47 @@
                 return;
             }
 
-            entries.push({ date, type, place, odometer });
+            if (editIndex !== null) {
+                // aktualizacja istniejącego wpisu
+                entries[editIndex] = { date, type, place, odometer };
+                editIndex = null;
+                document.getElementById('addBtn').textContent = "Dodaj wpis";
+                document.getElementById('cancelBtn').style.display = "none";
+            } else {
+                entries.push({ date, type, place, odometer });
+            }
+
             localStorage.setItem('driverEntries', JSON.stringify(entries));
             renderTable();
+            clearForm();
+        }
 
+        function editEntry(index) {
+            const entry = entries[index];
+            document.getElementById('date').value = entry.date;
+            document.getElementById('type').value = entry.type;
+            document.getElementById('place').value = entry.place;
+            document.getElementById('odometer').value = entry.odometer;
+
+            editIndex = index;
+            document.getElementById('addBtn').textContent = "Zapisz zmiany";
+            document.getElementById('cancelBtn').style.display = "inline-block";
+        }
+
+        function cancelEdit() {
+            editIndex = null;
+            document.getElementById('addBtn').textContent = "Dodaj wpis";
+            document.getElementById('cancelBtn').style.display = "none";
+            clearForm();
+        }
+
+        function clearForm() {
             document.getElementById('place').value = '';
             document.getElementById('odometer').value = '';
         }
 
         function deleteEntry(index) {
-            if (confirm("Usunąć wpis?")) {
+            if (confirm("Usunąć ten wpis?")) {
                 entries.splice(index, 1);
                 localStorage.setItem('driverEntries', JSON.stringify(entries));
                 renderTable();
@@ -142,11 +180,11 @@
             const carNo = document.getElementById('carNo').value || "";
 
             let html = `
-                <h1 style="text-align:center; font-size:18px;">Dziennik kierowcy</h1>
-                <p style="text-align:center;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
-                <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; font-size:11px; margin-top:20px;">
+                <h1 style="text-align:center; font-size:18px; margin-bottom:10px;">Dziennik kierowcy</h1>
+                <p style="text-align:center; margin-bottom:20px;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
+                <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; font-size:11px; border-color:black;">
                     <thead>
-                        <tr style="background:#f0f0f0; font-weight:bold;">
+                        <tr style="font-weight:bold;">
                             <th>Data Z.</th>
                             <th>Miejsce Z.</th>
                             <th>Stan licznika</th>
@@ -164,7 +202,6 @@
                 if (sorted[i].type === "Załadunek" && i + 1 < sorted.length && sorted[i+1].type === "Rozładunek") {
                     const z = sorted[i];
                     const r = sorted[i+1];
-
                     html += `
                         <tr>
                             <td>${z.date}</td>
@@ -200,7 +237,7 @@
                 margin: 10,
                 filename: `Dziennik_Kierowcy_${new Date().toISOString().slice(0,10)}.pdf`,
                 jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                html2canvas: { scale: 2 }
+                html2canvas: { scale: 2, useCORS: true }
             }).from(tempDiv).save();
 
             document.body.removeChild(tempDiv);
