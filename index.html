@@ -14,14 +14,14 @@
             color: #ddd;
         }
         h1 { color: #ff6600; text-align: center; }
-        .container { max-width: 1100px; margin: auto; }
+        .container { max-width: 1200px; margin: auto; }
         input, select, button {
             padding: 10px;
             margin: 5px;
             border-radius: 5px;
             border: none;
         }
-        input, select { background: #222; color: white; width: 100%; max-width: 300px; }
+        input, select { background: #222; color: white; }
         button {
             background: #ff6600;
             color: black;
@@ -41,7 +41,6 @@
             text-align: center;
         }
         th { background: #ff6600; color: black; }
-        .btn-group { text-align: center; margin: 15px 0; }
         .delete-btn {
             background: #c00;
             padding: 5px 10px;
@@ -54,8 +53,8 @@
         <h1>DZIENNIK KIEROWCY</h1>
 
         <div>
-            <input type="text" id="driver" placeholder="Imię i nazwisko kierowcy" value="Lucjan">
-            <input type="text" id="carNo" placeholder="Numer rejestracyjny" value="XXX 7777">
+            <input type="text" id="driver" placeholder="Imię i nazwisko" value="Łukasz Stasiński">
+            <input type="text" id="carNo" placeholder="Nr auta" value="PO8HG90">
         </div>
 
         <div>
@@ -65,12 +64,12 @@
                 <option value="Rozładunek">Rozładunek</option>
             </select>
             <input type="text" id="place" placeholder="Miejscowość">
-            <input type="number" id="odometer" placeholder="Licznik km">
+            <input type="number" id="odometer" placeholder="Stan licznika">
             <button onclick="addEntry()">Dodaj wpis</button>
         </div>
 
-        <div class="btn-group">
-            <button onclick="exportPDF()">📄 Export do PDF (z parami tras)</button>
+        <div style="text-align:center; margin:15px 0;">
+            <button onclick="exportPDF()">📄 Export do PDF (jak na screenie)</button>
             <button onclick="exportCSV()">📊 Export do CSV</button>
             <button onclick="clearAll()" style="background:#c00;">🗑 Wyczyść wszystko</button>
         </div>
@@ -81,7 +80,7 @@
                     <th>Data</th>
                     <th>Typ</th>
                     <th>Miejscowość</th>
-                    <th>Licznik km</th>
+                    <th>Stan licznika</th>
                     <th>Akcja</th>
                 </tr>
             </thead>
@@ -123,121 +122,113 @@
             localStorage.setItem('driverEntries', JSON.stringify(entries));
             renderTable();
 
-            // Czyść pola
             document.getElementById('place').value = '';
             document.getElementById('odometer').value = '';
         }
 
         function deleteEntry(index) {
-            if (confirm("Usunąć ten wpis?")) {
+            if (confirm("Usunąć wpis?")) {
                 entries.splice(index, 1);
                 localStorage.setItem('driverEntries', JSON.stringify(entries));
                 renderTable();
             }
         }
 
+        // ====================== PDF – FORMAT JAK NA SCREENIE ======================
         async function exportPDF() {
-            if (entries.length === 0) return alert("Brak wpisów do wygenerowania PDF!");
+            if (entries.length === 0) return alert("Brak wpisów!");
 
             const driver = document.getElementById('driver').value || "Kierowca";
             const carNo = document.getElementById('carNo').value || "";
 
             let html = `
-                <div style="padding:30px; font-family:Arial,sans-serif; max-width:1100px; margin:auto;">
-                    <h1 style="text-align:center; color:#ff6600;">DZIENNIK KIEROWCY</h1>
-                    <p style="text-align:center; font-size:18px;">${driver} • ${carNo} • ${new Date().toLocaleDateString('pl-PL')}</p>
-                    
-                    <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; margin-top:20px;">
+                <h1 style="text-align:center;">Dziennik kierowcy</h1>
+                <p style="text-align:center;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
+                <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; font-size:11px; margin-top:20px;">
+                    <thead>
                         <tr style="background:#ff6600; color:black; font-weight:bold;">
-                            <th>Lp.</th>
-                            <th>Data</th>
-                            <th>Trasa</th>
-                            <th>Załadunek</th>
-                            <th>Rozładunek</th>
-                            <th>Licznik start</th>
-                            <th>Licznik koniec</th>
-                            <th>Przejechano km</th>
-                        </tr>`;
+                            <th>Data Z.</th>
+                            <th>Miejsce Z.</th>
+                            <th>Stan licznika</th>
+                            <th>Data R.</th>
+                            <th>Miejsce R.</th>
+                            <th>Stan licznika</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
 
             const sorted = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-            let tripCounter = 1;
             let i = 0;
-
             while (i < sorted.length) {
-                const current = sorted[i];
-
-                if (current.type === "Załadunek" && i + 1 < sorted.length && sorted[i + 1].type === "Rozładunek") {
-                    const loading = current;
-                    const unloading = sorted[i + 1];
-                    const kmStart = parseInt(loading.odometer) || 0;
-                    const kmEnd = parseInt(unloading.odometer) || 0;
-                    const distance = kmEnd > kmStart ? kmEnd - kmStart : 0;
+                if (sorted[i].type === "Załadunek" && i + 1 < sorted.length && sorted[i+1].type === "Rozładunek") {
+                    const z = sorted[i];
+                    const r = sorted[i+1];
 
                     html += `
                         <tr>
-                            <td>${tripCounter++}</td>
-                            <td>${loading.date}</td>
-                            <td><strong>${loading.place} → ${unloading.place}</strong></td>
-                            <td>${loading.place}</td>
-                            <td>${unloading.place}</td>
-                            <td>${kmStart}</td>
-                            <td>${kmEnd}</td>
-                            <td><strong>${distance} km</strong></td>
+                            <td>${z.date}</td>
+                            <td>${z.place}</td>
+                            <td>${z.odometer}</td>
+                            <td>${r.date}</td>
+                            <td>${r.place}</td>
+                            <td>${r.odometer}</td>
                         </tr>`;
                     i += 2;
                 } else {
+                    // pojedynczy wpis (bez pary)
+                    const e = sorted[i];
                     html += `
-                        <tr style="background:#333; color:#bbb;">
-                            <td>${tripCounter++}</td>
-                            <td>${current.date}</td>
-                            <td colspan="5">${current.type}: ${current.place}</td>
-                            <td>${current.odometer} km</td>
+                        <tr>
+                            <td>${e.type === "Załadunek" ? e.date : ""}</td>
+                            <td>${e.type === "Załadunek" ? e.place : ""}</td>
+                            <td>${e.type === "Załadunek" ? e.odometer : ""}</td>
+                            <td>${e.type === "Rozładunek" ? e.date : ""}</td>
+                            <td>${e.type === "Rozładunek" ? e.place : ""}</td>
+                            <td>${e.type === "Rozładunek" ? e.odometer : ""}</td>
                         </tr>`;
                     i++;
                 }
             }
 
-            html += `</table></div>`;
+            html += `</tbody></table>`;
 
-            const temp = document.createElement('div');
-            temp.innerHTML = html;
-            document.body.appendChild(temp);
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            document.body.appendChild(tempDiv);
 
             await html2pdf().set({
-                margin: [15, 10, 15, 10],
+                margin: 10,
                 filename: `Dziennik_Kierowcy_${new Date().toISOString().slice(0,10)}.pdf`,
                 jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
                 html2canvas: { scale: 2 }
-            }).from(temp).save();
+            }).from(tempDiv).save();
 
-            document.body.removeChild(temp);
+            document.body.removeChild(tempDiv);
         }
 
         function exportCSV() {
             if (entries.length === 0) return alert("Brak wpisów!");
-
-            let csv = "Data;Typ;Miejscowość;Licznik km\n";
+            let csv = "Data Z.;Miejsce Z.;Stan licznika Z.;Data R.;Miejsce R.;Stan licznika R.\n";
+            // prosty eksport liniowy - możesz później ulepszyć
             entries.forEach(e => {
-                csv += `${e.date};${e.type};${e.place};${e.odometer}\n`;
+                csv += `${e.date};${e.place};${e.odometer};;;\n`;
             });
-
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Dziennik_Kierowcy_${new Date().toISOString().slice(0,10)}.csv`;
+            link.download = `Dziennik_${new Date().toISOString().slice(0,10)}.csv`;
             link.click();
         }
 
         function clearAll() {
-            if (confirm("Na pewno wyczyścić WSZYSTKIE wpisy?")) {
+            if (confirm("Wyczyścić wszystkie wpisy?")) {
                 entries = [];
                 localStorage.removeItem('driverEntries');
                 renderTable();
             }
         }
 
-        // Inicjalizacja
         window.onload = () => {
             document.getElementById('date').valueAsDate = new Date();
             renderTable();
