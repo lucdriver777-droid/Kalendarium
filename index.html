@@ -126,7 +126,6 @@
             }
 
             if (editIndex !== null) {
-                // aktualizacja istniejącego wpisu
                 entries[editIndex] = { date, type, place, odometer };
                 editIndex = null;
                 document.getElementById('addBtn').textContent = "Dodaj wpis";
@@ -172,7 +171,7 @@
             }
         }
 
-        // ====================== PROSTY CZARNO-BIAŁY PDF ======================
+        // ====================== NAPRAWIONY PDF ======================
         async function exportPDF() {
             if (entries.length === 0) return alert("Brak wpisów!");
 
@@ -180,20 +179,22 @@
             const carNo = document.getElementById('carNo').value || "";
 
             let html = `
-                <h1 style="text-align:center; font-size:18px; margin-bottom:10px;">Dziennik kierowcy</h1>
-                <p style="text-align:center; margin-bottom:20px;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
-                <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; font-size:11px; border-color:black;">
-                    <thead>
-                        <tr style="font-weight:bold;">
-                            <th>Data Z.</th>
-                            <th>Miejsce Z.</th>
-                            <th>Stan licznika</th>
-                            <th>Data R.</th>
-                            <th>Miejsce R.</th>
-                            <th>Stan licznika</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
+                <div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h1 style="text-align:center; font-size: 18px; margin-bottom: 10px; color: black;">Dziennik kierowcy</h1>
+                    <p style="text-align:center; margin-bottom: 20px; color: black;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
+                    
+                    <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse; font-size:11px; border-color: black; color: black;">
+                        <thead>
+                            <tr style="font-weight: bold; border-bottom: 2px solid black;">
+                                <th style="border:1px solid black;">Data Z.</th>
+                                <th style="border:1px solid black;">Miejsce Z.</th>
+                                <th style="border:1px solid black;">Stan licznika</th>
+                                <th style="border:1px solid black;">Data R.</th>
+                                <th style="border:1px solid black;">Miejsce R.</th>
+                                <th style="border:1px solid black;">Stan licznika</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
             const sorted = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -201,43 +202,48 @@
             while (i < sorted.length) {
                 if (sorted[i].type === "Załadunek" && i + 1 < sorted.length && sorted[i+1].type === "Rozładunek") {
                     const z = sorted[i];
-                    const r = sorted[i+1];
+                    const r = sorted[i + 1];
                     html += `
                         <tr>
-                            <td>${z.date}</td>
-                            <td>${z.place}</td>
-                            <td>${z.odometer}</td>
-                            <td>${r.date}</td>
-                            <td>${r.place}</td>
-                            <td>${r.odometer}</td>
+                            <td style="border:1px solid black;">${z.date}</td>
+                            <td style="border:1px solid black;">${z.place}</td>
+                            <td style="border:1px solid black;">${z.odometer}</td>
+                            <td style="border:1px solid black;">${r.date}</td>
+                            <td style="border:1px solid black;">${r.place}</td>
+                            <td style="border:1px solid black;">${r.odometer}</td>
                         </tr>`;
                     i += 2;
                 } else {
                     const e = sorted[i];
                     html += `
                         <tr>
-                            <td>${e.type === "Załadunek" ? e.date : ""}</td>
-                            <td>${e.type === "Załadunek" ? e.place : ""}</td>
-                            <td>${e.type === "Załadunek" ? e.odometer : ""}</td>
-                            <td>${e.type === "Rozładunek" ? e.date : ""}</td>
-                            <td>${e.type === "Rozładunek" ? e.place : ""}</td>
-                            <td>${e.type === "Rozładunek" ? e.odometer : ""}</td>
+                            <td style="border:1px solid black;">${e.type === "Załadunek" ? e.date : ""}</td>
+                            <td style="border:1px solid black;">${e.type === "Załadunek" ? e.place : ""}</td>
+                            <td style="border:1px solid black;">${e.type === "Załadunek" ? e.odometer : ""}</td>
+                            <td style="border:1px solid black;">${e.type === "Rozładunek" ? e.date : ""}</td>
+                            <td style="border:1px solid black;">${e.type === "Rozładunek" ? e.place : ""}</td>
+                            <td style="border:1px solid black;">${e.type === "Rozładunek" ? e.odometer : ""}</td>
                         </tr>`;
                     i++;
                 }
             }
 
-            html += `</tbody></table>`;
+            html += `</tbody></table></div>`;
 
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
             document.body.appendChild(tempDiv);
 
             await html2pdf().set({
-                margin: 10,
+                margin: [15, 10, 15, 10],
                 filename: `Dziennik_Kierowcy_${new Date().toISOString().slice(0,10)}.pdf`,
                 jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                html2canvas: { scale: 2, useCORS: true }
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    letterRendering: true
+                },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             }).from(tempDiv).save();
 
             document.body.removeChild(tempDiv);
