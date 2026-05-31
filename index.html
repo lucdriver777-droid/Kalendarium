@@ -4,166 +4,244 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dziennik Kierowcy</title>
-    <meta name="theme-color" content="#ff6600">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin:0; background:#111; color:white; padding:10px; }
-        h1 { text-align:center; color:#ff6600; }
-        input, select, button { width:100%; padding:15px; margin:8px 0; font-size:18px; border-radius:8px; }
-        input, select { background:#333; color:white; }
-        button { background:#ff6600; color:black; font-weight:bold; }
-        .red { background:#c00; }
-        table { width:100%; border-collapse:collapse; margin-top:15px; }
-        th, td { padding:12px; border:1px solid #555; text-align:center; }
-        th { background:#ff6600; color:black; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: #111;
+            color: #ddd;
+        }
+        h1 { color: #ff6600; text-align: center; }
+        .container { max-width: 1100px; margin: auto; }
+        input, select, button {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            border: none;
+        }
+        input, select { background: #222; color: white; width: 100%; max-width: 300px; }
+        button {
+            background: #ff6600;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover { background: #ff8533; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #1a1a1a;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #444;
+            text-align: center;
+        }
+        th { background: #ff6600; color: black; }
+        .btn-group { text-align: center; margin: 15px 0; }
+        .delete-btn {
+            background: #c00;
+            padding: 5px 10px;
+            font-size: 0.9em;
+        }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 </head>
 <body>
+    <div class="container">
+        <h1>DZIENNIK KIEROWCY</h1>
 
-<h1>🚛 Dziennik Kierowcy</h1>
+        <div>
+            <input type="text" id="driver" placeholder="Imię i nazwisko kierowcy" value="Lucjan">
+            <input type="text" id="carNo" placeholder="Numer rejestracyjny" value="XXX 7777">
+        </div>
 
-<input type="text" id="driver" placeholder="Kierowca" oninput="saveHeader()">
-<input type="text" id="carNo" placeholder="Nr auta" oninput="saveHeader()">
-<select id="type"><option value="Załadunek">Załadunek</option><option value="Rozładunek">Rozładunek</option></select>
-<input type="date" id="date">
-<input type="text" id="place" placeholder="Miejsce">
-<input type="number" id="odometer" placeholder="Stan licznika (km)">
+        <div>
+            <input type="date" id="date">
+            <select id="type">
+                <option value="Załadunek">Załadunek</option>
+                <option value="Rozładunek">Rozładunek</option>
+            </select>
+            <input type="text" id="place" placeholder="Miejscowość">
+            <input type="number" id="odometer" placeholder="Licznik km">
+            <button onclick="addEntry()">Dodaj wpis</button>
+        </div>
 
-<button onclick="addEntry()">➕ Dodaj wpis</button>
-<button onclick="exportPDF()" style="font-size:20px; background:#ff8800;">📄 GENERUJ PDF</button>
-<button onclick="exportCSV()" style="background:#0066cc;">💾 CSV</button>
-<button onclick="clearLog()" class="red">🗑️ Wyczyść wszystko</button>
+        <div class="btn-group">
+            <button onclick="exportPDF()">📄 Export do PDF (z parami tras)</button>
+            <button onclick="exportCSV()">📊 Export do CSV</button>
+            <button onclick="clearAll()" style="background:#c00;">🗑 Wyczyść wszystko</button>
+        </div>
 
-<table id="logTable">
-    <thead><tr><th>#</th><th>Data</th><th>Rodzaj</th><th>Miejsce</th><th>Licznik</th><th>Akcje</th></tr></thead>
-    <tbody></tbody>
-</table>
+        <table id="table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Typ</th>
+                    <th>Miejscowość</th>
+                    <th>Licznik km</th>
+                    <th>Akcja</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 
-<script>
-let entries = [];
+    <script>
+        let entries = JSON.parse(localStorage.getItem('driverEntries')) || [];
 
-function load() {
-    entries = JSON.parse(localStorage.getItem('driverLog') || '[]');
-}
+        function renderTable() {
+            const tbody = document.querySelector('#table tbody');
+            tbody.innerHTML = '';
+            entries.forEach((entry, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${entry.date}</td>
+                    <td>${entry.type}</td>
+                    <td>${entry.place}</td>
+                    <td>${entry.odometer}</td>
+                    <td><button class="delete-btn" onclick="deleteEntry(${index})">Usuń</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
 
-function persist() {
-    localStorage.setItem('driverLog', JSON.stringify(entries));
-}
+        function addEntry() {
+            const date = document.getElementById('date').value;
+            const type = document.getElementById('type').value;
+            const place = document.getElementById('place').value.trim();
+            const odometer = document.getElementById('odometer').value;
 
-function render() {
-    const tbody = document.querySelector('#logTable tbody');
-    tbody.innerHTML = '';
-    entries.forEach((e, i) => {
-        const row = tbody.insertRow();
-        row.innerHTML = `<td>${i+1}</td><td>${e.date}</td><td>${e.type}</td><td>${e.place}</td><td>${e.odometer}</td>
-            <td><button onclick="deleteEntry(${e.id})">🗑️</button></td>`;
-    });
-}
+            if (!date || !place || !odometer) {
+                alert("Wypełnij wszystkie pola!");
+                return;
+            }
 
-// ==================== PDF ====================
-async function exportPDF() {
-    if (entries.length === 0) return alert("Brak wpisów!");
+            entries.push({ date, type, place, odometer });
+            localStorage.setItem('driverEntries', JSON.stringify(entries));
+            renderTable();
 
-    const driver = document.getElementById('driver').value || "Kierowca";
-    const carNo = document.getElementById('carNo').value || "";
+            // Czyść pola
+            document.getElementById('place').value = '';
+            document.getElementById('odometer').value = '';
+        }
 
-    let html = `
-        <div style="padding:30px; font-family:Arial;">
-            <h1 style="text-align:center; color:#ff6600;">DZIENNIK KIEROWCY</h1>
-            <p style="text-align:center;">${driver} • ${carNo} • ${new Date().toLocaleDateString('pl-PL')}</p>
-            <table border="1" cellpadding="12" style="width:100%; border-collapse:collapse;">
-                <tr style="background:#ff6600; color:black;">
-                    <th>Lp.</th><th>Data</th><th>Rodzaj</th><th>Miejsce</th><th>Licznik km</th>
-                </tr>`;
+        function deleteEntry(index) {
+            if (confirm("Usunąć ten wpis?")) {
+                entries.splice(index, 1);
+                localStorage.setItem('driverEntries', JSON.stringify(entries));
+                renderTable();
+            }
+        }
 
-    entries.forEach((e, i) => {
-        html += `<tr>
-            <td>${i+1}</td>
-            <td>${e.date}</td>
-            <td>${e.type}</td>
-            <td>${e.place}</td>
-            <td>${e.odometer}</td>
-        </tr>`;
-    });
+        async function exportPDF() {
+            if (entries.length === 0) return alert("Brak wpisów do wygenerowania PDF!");
 
-    html += `</table></div>`;
+            const driver = document.getElementById('driver').value || "Kierowca";
+            const carNo = document.getElementById('carNo').value || "";
 
-    const temp = document.createElement('div');
-    temp.innerHTML = html;
-    document.body.appendChild(temp);
+            let html = `
+                <div style="padding:30px; font-family:Arial,sans-serif; max-width:1100px; margin:auto;">
+                    <h1 style="text-align:center; color:#ff6600;">DZIENNIK KIEROWCY</h1>
+                    <p style="text-align:center; font-size:18px;">${driver} • ${carNo} • ${new Date().toLocaleDateString('pl-PL')}</p>
+                    
+                    <table border="1" cellpadding="10" style="width:100%; border-collapse:collapse; margin-top:20px;">
+                        <tr style="background:#ff6600; color:black; font-weight:bold;">
+                            <th>Lp.</th>
+                            <th>Data</th>
+                            <th>Trasa</th>
+                            <th>Załadunek</th>
+                            <th>Rozładunek</th>
+                            <th>Licznik start</th>
+                            <th>Licznik koniec</th>
+                            <th>Przejechano km</th>
+                        </tr>`;
 
-    await html2pdf().set({
-        margin: 10,
-        filename: 'Dziennik_Kierowcy.pdf',
-        jsPDF: { orientation: 'landscape' }
-    }).from(temp).save();
+            const sorted = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    document.body.removeChild(temp);
-}
+            let tripCounter = 1;
+            let i = 0;
 
-// ==================== CSV (przywrócony) ====================
-function exportCSV() {
-    if (entries.length === 0) return alert("Brak wpisów!");
+            while (i < sorted.length) {
+                const current = sorted[i];
 
-    let csv = "Lp.;Data;Rodzaj;Miejsce;Licznik_km\n";
-    entries.forEach((e, i) => {
-        csv += `${i+1};${e.date};${e.type};${e.place};${e.odometer}\n`;
-    });
+                if (current.type === "Załadunek" && i + 1 < sorted.length && sorted[i + 1].type === "Rozładunek") {
+                    const loading = current;
+                    const unloading = sorted[i + 1];
+                    const kmStart = parseInt(loading.odometer) || 0;
+                    const kmEnd = parseInt(unloading.odometer) || 0;
+                    const distance = kmEnd > kmStart ? kmEnd - kmStart : 0;
 
-    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'Dziennik_Kierowcy.csv';
-    link.click();
-}
+                    html += `
+                        <tr>
+                            <td>${tripCounter++}</td>
+                            <td>${loading.date}</td>
+                            <td><strong>${loading.place} → ${unloading.place}</strong></td>
+                            <td>${loading.place}</td>
+                            <td>${unloading.place}</td>
+                            <td>${kmStart}</td>
+                            <td>${kmEnd}</td>
+                            <td><strong>${distance} km</strong></td>
+                        </tr>`;
+                    i += 2;
+                } else {
+                    html += `
+                        <tr style="background:#333; color:#bbb;">
+                            <td>${tripCounter++}</td>
+                            <td>${current.date}</td>
+                            <td colspan="5">${current.type}: ${current.place}</td>
+                            <td>${current.odometer} km</td>
+                        </tr>`;
+                    i++;
+                }
+            }
 
-// ==================== Reszta ====================
-function addEntry() {
-    const entry = {
-        id: Date.now(),
-        date: document.getElementById('date').value || new Date().toISOString().slice(0,10),
-        type: document.getElementById('type').value,
-        place: document.getElementById('place').value.trim(),
-        odometer: document.getElementById('odometer').value.trim()
-    };
-    if (!entry.place || !entry.odometer) return alert("Wpisz miejsce i licznik!");
-    
-    entries.unshift(entry);
-    persist();
-    render();
-    document.getElementById('place').value = '';
-    document.getElementById('odometer').value = '';
-}
+            html += `</table></div>`;
 
-function deleteEntry(id) {
-    if (confirm("Usunąć wpis?")) {
-        entries = entries.filter(e => e.id !== id);
-        persist();
-        render();
-    }
-}
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            document.body.appendChild(temp);
 
-function clearLog() {
-    if (confirm("Wyczyścić wszystko?") && confirm("Na pewno?")) {
-        localStorage.clear();
-        entries = [];
-        render();
-    }
-}
+            await html2pdf().set({
+                margin: [15, 10, 15, 10],
+                filename: `Dziennik_Kierowcy_${new Date().toISOString().slice(0,10)}.pdf`,
+                jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
+                html2canvas: { scale: 2 }
+            }).from(temp).save();
 
-function saveHeader() {
-    localStorage.setItem('driverName', document.getElementById('driver').value);
-    localStorage.setItem('carNumber', document.getElementById('carNo').value);
-}
+            document.body.removeChild(temp);
+        }
 
-// Start
-window.onload = () => {
-    load();
-    document.getElementById('date').value = new Date().toISOString().slice(0,10);
-    document.getElementById('driver').value = localStorage.getItem('driverName') || '';
-    document.getElementById('carNo').value = localStorage.getItem('carNumber') || '';
-    render();
-};
-</script>
+        function exportCSV() {
+            if (entries.length === 0) return alert("Brak wpisów!");
+
+            let csv = "Data;Typ;Miejscowość;Licznik km\n";
+            entries.forEach(e => {
+                csv += `${e.date};${e.type};${e.place};${e.odometer}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Dziennik_Kierowcy_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+        }
+
+        function clearAll() {
+            if (confirm("Na pewno wyczyścić WSZYSTKIE wpisy?")) {
+                entries = [];
+                localStorage.removeItem('driverEntries');
+                renderTable();
+            }
+        }
+
+        // Inicjalizacja
+        window.onload = () => {
+            document.getElementById('date').valueAsDate = new Date();
+            renderTable();
+        };
+    </script>
 </body>
 </html>
