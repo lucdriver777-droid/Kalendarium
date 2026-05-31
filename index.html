@@ -55,8 +55,8 @@
         <h1>DZIENNIK KIEROWCY</h1>
 
         <div>
-            <input type="text" id="driver" placeholder="Imię i nazwisko" value="Łukasz Stasiński">
-            <input type="text" id="carNo" placeholder="Nr auta" value="PO8HG90">
+            <input type="text" id="driver" value="Łukasz Stasiński">
+            <input type="text" id="carNo" value="PO8HG90">
         </div>
 
         <div>
@@ -68,13 +68,13 @@
             <input type="text" id="place" placeholder="Miejscowość">
             <input type="number" id="odometer" placeholder="Stan licznika">
             <button onclick="addEntry()" id="addBtn">Dodaj wpis</button>
-            <button onclick="cancelEdit()" id="cancelBtn" style="display:none; background:#666;">Anuluj edycję</button>
+            <button onclick="cancelEdit()" id="cancelBtn" style="display:none; background:#666;">Anuluj</button>
         </div>
 
         <div style="text-align:center; margin:15px 0;">
             <button onclick="exportPDF()">📄 Export do PDF</button>
             <button onclick="exportCSV()">📊 Export do CSV</button>
-            <button onclick="clearAll()" style="background:#c00;">🗑 Wyczyść wszystko</button>
+            <button onclick="clearAll()" style="background:#c00;">Wyczyść wszystko</button>
         </div>
 
         <table id="table">
@@ -120,10 +120,7 @@
             const place = document.getElementById('place').value.trim();
             const odometer = document.getElementById('odometer').value;
 
-            if (!date || !place || !odometer) {
-                alert("Wypełnij wszystkie pola!");
-                return;
-            }
+            if (!date || !place || !odometer) return alert("Wypełnij wszystkie pola!");
 
             if (editIndex !== null) {
                 entries[editIndex] = { date, type, place, odometer };
@@ -140,12 +137,11 @@
         }
 
         function editEntry(index) {
-            const entry = entries[index];
-            document.getElementById('date').value = entry.date;
-            document.getElementById('type').value = entry.type;
-            document.getElementById('place').value = entry.place;
-            document.getElementById('odometer').value = entry.odometer;
-
+            const e = entries[index];
+            document.getElementById('date').value = e.date;
+            document.getElementById('type').value = e.type;
+            document.getElementById('place').value = e.place;
+            document.getElementById('odometer').value = e.odometer;
             editIndex = index;
             document.getElementById('addBtn').textContent = "Zapisz zmiany";
             document.getElementById('cancelBtn').style.display = "inline-block";
@@ -164,14 +160,13 @@
         }
 
         function deleteEntry(index) {
-            if (confirm("Usunąć ten wpis?")) {
+            if (confirm("Usunąć wpis?")) {
                 entries.splice(index, 1);
                 localStorage.setItem('driverEntries', JSON.stringify(entries));
                 renderTable();
             }
         }
 
-        // ====================== NAPRAWIONY PDF ======================
         async function exportPDF() {
             if (entries.length === 0) return alert("Brak wpisów!");
 
@@ -179,93 +174,81 @@
             const carNo = document.getElementById('carNo').value || "";
 
             let html = `
-                <div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h1 style="text-align:center; font-size: 18px; margin-bottom: 10px; color: black;">Dziennik kierowcy</h1>
-                    <p style="text-align:center; margin-bottom: 20px; color: black;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
+                <div style="padding:30px; font-family:Arial,sans-serif; color:#000; background:#fff;">
+                    <h1 style="text-align:center; margin:0 0 10px 0;">Dziennik kierowcy</h1>
+                    <p style="text-align:center; margin-bottom:30px;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
                     
-                    <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse; font-size:11px; border-color: black; color: black;">
-                        <thead>
-                            <tr style="font-weight: bold; border-bottom: 2px solid black;">
-                                <th style="border:1px solid black;">Data Z.</th>
-                                <th style="border:1px solid black;">Miejsce Z.</th>
-                                <th style="border:1px solid black;">Stan licznika</th>
-                                <th style="border:1px solid black;">Data R.</th>
-                                <th style="border:1px solid black;">Miejsce R.</th>
-                                <th style="border:1px solid black;">Stan licznika</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
+                    <table border="1" cellpadding="10" cellspacing="0" style="width:100%; border-collapse:collapse; border:2px solid #000; font-size:11px;">
+                        <tr style="font-weight:bold; background:#f8f8f8;">
+                            <th style="border:1px solid #000;">Data Z.</th>
+                            <th style="border:1px solid #000;">Miejsce Z.</th>
+                            <th style="border:1px solid #000;">Stan licznika</th>
+                            <th style="border:1px solid #000;">Data R.</th>
+                            <th style="border:1px solid #000;">Miejsce R.</th>
+                            <th style="border:1px solid #000;">Stan licznika</th>
+                        </tr>`;
 
-            const sorted = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const sorted = [...entries].sort((a,b) => new Date(a.date) - new Date(b.date));
 
             let i = 0;
             while (i < sorted.length) {
-                if (sorted[i].type === "Załadunek" && i + 1 < sorted.length && sorted[i+1].type === "Rozładunek") {
+                if (sorted[i].type === "Załadunek" && i+1 < sorted.length && sorted[i+1].type === "Rozładunek") {
                     const z = sorted[i];
-                    const r = sorted[i + 1];
-                    html += `
-                        <tr>
-                            <td style="border:1px solid black;">${z.date}</td>
-                            <td style="border:1px solid black;">${z.place}</td>
-                            <td style="border:1px solid black;">${z.odometer}</td>
-                            <td style="border:1px solid black;">${r.date}</td>
-                            <td style="border:1px solid black;">${r.place}</td>
-                            <td style="border:1px solid black;">${r.odometer}</td>
-                        </tr>`;
+                    const r = sorted[i+1];
+                    html += `<tr>
+                        <td style="border:1px solid #000;">${z.date}</td>
+                        <td style="border:1px solid #000;">${z.place}</td>
+                        <td style="border:1px solid #000;">${z.odometer}</td>
+                        <td style="border:1px solid #000;">${r.date}</td>
+                        <td style="border:1px solid #000;">${r.place}</td>
+                        <td style="border:1px solid #000;">${r.odometer}</td>
+                    </tr>`;
                     i += 2;
                 } else {
                     const e = sorted[i];
-                    html += `
-                        <tr>
-                            <td style="border:1px solid black;">${e.type === "Załadunek" ? e.date : ""}</td>
-                            <td style="border:1px solid black;">${e.type === "Załadunek" ? e.place : ""}</td>
-                            <td style="border:1px solid black;">${e.type === "Załadunek" ? e.odometer : ""}</td>
-                            <td style="border:1px solid black;">${e.type === "Rozładunek" ? e.date : ""}</td>
-                            <td style="border:1px solid black;">${e.type === "Rozładunek" ? e.place : ""}</td>
-                            <td style="border:1px solid black;">${e.type === "Rozładunek" ? e.odometer : ""}</td>
-                        </tr>`;
+                    html += `<tr>
+                        <td style="border:1px solid #000;">${e.type==="Załadunek"?e.date:""}</td>
+                        <td style="border:1px solid #000;">${e.type==="Załadunek"?e.place:""}</td>
+                        <td style="border:1px solid #000;">${e.type==="Załadunek"?e.odometer:""}</td>
+                        <td style="border:1px solid #000;">${e.type==="Rozładunek"?e.date:""}</td>
+                        <td style="border:1px solid #000;">${e.type==="Rozładunek"?e.place:""}</td>
+                        <td style="border:1px solid #000;">${e.type==="Rozładunek"?e.odometer:""}</td>
+                    </tr>`;
                     i++;
                 }
             }
 
-            html += `</tbody></table></div>`;
+            html += `</table></div>`;
 
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            document.body.appendChild(tempDiv);
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            document.body.appendChild(temp);
 
             await html2pdf().set({
-                margin: [15, 10, 15, 10],
-                filename: `Dziennik_Kierowcy_${new Date().toISOString().slice(0,10)}.pdf`,
+                margin: [20, 15, 20, 15],
+                filename: `Dziennik_${new Date().toISOString().slice(0,10)}.pdf`,
                 jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' },
-                html2canvas: { 
-                    scale: 2,
-                    useCORS: true,
-                    letterRendering: true
-                },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-            }).from(tempDiv).save();
+                html2canvas: { scale: 2, useCORS: true, logging: false }
+            }).from(temp).save();
 
-            document.body.removeChild(tempDiv);
+            document.body.removeChild(temp);
         }
 
         function exportCSV() {
             if (entries.length === 0) return alert("Brak wpisów!");
-            let csv = "Data Z.;Miejsce Z.;Stan licznika Z.;Data R.;Miejsce R.;Stan licznika R.\n";
-            entries.forEach(e => {
-                csv += `${e.date};${e.place};${e.odometer};;;\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Dziennik_${new Date().toISOString().slice(0,10)}.csv`;
-            link.click();
+            let csv = "Data Z.;Miejsce Z.;Stan Z.;Data R.;Miejsce R.;Stan R.\n";
+            entries.forEach(e => csv += `${e.date};${e.place};${e.odometer};;;\n`);
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Dziennik_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
         }
 
         function clearAll() {
-            if (confirm("Wyczyścić wszystkie wpisy?")) {
+            if (confirm("Na pewno wyczyścić WSZYSTKO?")) {
                 entries = [];
-                localStorage.removeItem('driverEntries');
+                localStorage.clear();
                 renderTable();
             }
         }
