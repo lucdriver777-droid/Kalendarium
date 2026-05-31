@@ -40,7 +40,7 @@
             border: 1px solid #444;
             text-align: center;
         }
-        th { background: #ff6600; color: black; }
+        th { background: #333; color: white; }
         .delete-btn {
             background: #c00;
             padding: 5px 10px;
@@ -69,7 +69,7 @@
         </div>
 
         <div style="text-align:center; margin:15px 0;">
-            <button onclick="exportPDF()">📄 Export do PDF (jak na screenie)</button>
+            <button onclick="exportPDF()">📄 Export do PDF</button>
             <button onclick="exportCSV()">📊 Export do CSV</button>
             <button onclick="clearAll()" style="background:#c00;">🗑 Wyczyść wszystko</button>
         </div>
@@ -134,7 +134,7 @@
             }
         }
 
-        // ====================== PDF – FORMAT JAK NA SCREENIE ======================
+        // ====================== PROSTY CZARNO-BIAŁY PDF ======================
         async function exportPDF() {
             if (entries.length === 0) return alert("Brak wpisów!");
 
@@ -142,11 +142,11 @@
             const carNo = document.getElementById('carNo').value || "";
 
             let html = `
-                <h1 style="text-align:center;">Dziennik kierowcy</h1>
+                <h1 style="text-align:center; font-size:18px;">Dziennik kierowcy</h1>
                 <p style="text-align:center;">Kierowca: ${driver} • Nr auta: ${carNo}</p>
                 <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; font-size:11px; margin-top:20px;">
                     <thead>
-                        <tr style="background:#ff6600; color:black; font-weight:bold;">
+                        <tr style="background:#f0f0f0; font-weight:bold;">
                             <th>Data Z.</th>
                             <th>Miejsce Z.</th>
                             <th>Stan licznika</th>
@@ -176,7 +176,6 @@
                         </tr>`;
                     i += 2;
                 } else {
-                    // pojedynczy wpis (bez pary)
                     const e = sorted[i];
                     html += `
                         <tr>
@@ -210,7 +209,6 @@
         function exportCSV() {
             if (entries.length === 0) return alert("Brak wpisów!");
             let csv = "Data Z.;Miejsce Z.;Stan licznika Z.;Data R.;Miejsce R.;Stan licznika R.\n";
-            // prosty eksport liniowy - możesz później ulepszyć
             entries.forEach(e => {
                 csv += `${e.date};${e.place};${e.odometer};;;\n`;
             });
